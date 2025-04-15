@@ -1,49 +1,55 @@
-import React, { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Box, CircularProgress, Typography, Container } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
-import { CircularProgress, Box, Typography } from '@mui/material';
 
 const GoogleCallback: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { loginWithGoogle } = useAuth();
+  const location = useLocation();
+  const { login } = useAuth();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const code = searchParams.get('code');
-    if (!code) {
-      navigate('/login');
-      return;
-    }
-
-    const handleGoogleCallback = async () => {
+    const handleCallback = async () => {
       try {
-        await loginWithGoogle(code);
-        navigate('/menu');
-      } catch (error) {
-        console.error('Google login error:', error);
-        navigate('/login');
+        // Check for token in URL parameters or local storage
+        const params = new URLSearchParams(location.search);
+        const token = params.get('token');
+        const userDataStr = params.get('userData');
+
+        if (token && userDataStr) {
+          // Parse user data
+          const userData = JSON.parse(decodeURIComponent(userDataStr));
+          // Use login method from AuthContext
+          login(userData, token);
+        } else {
+          setError('Token não encontrado na resposta do Google OAuth');
+          setTimeout(() => navigate('/login'), 3000);
+        }
+      } catch (err) {
+        console.error('Erro ao processar callback do Google:', err);
+        setError('Erro ao processar autenticação com Google. Redirecionando para login...');
+        setTimeout(() => navigate('/login'), 3000);
       }
     };
 
-    handleGoogleCallback();
-  }, [searchParams, navigate, loginWithGoogle]);
+    handleCallback();
+  }, [location, navigate, login]);
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-      }}
-    >
-      <CircularProgress />
-      <Typography variant="h6" sx={{ mt: 2 }}>
-        Processing Google login...
-      </Typography>
-    </Box>
+    <Container component="main" maxWidth="xs">
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 10 }}>
+        {error ? (
+          <Typography color="error">{error}</Typography>
+        ) : (
+          <>
+            <CircularProgress />
+            <Typography variant="h6">Processando autenticação com Google...</Typography>
+          </>
+        )}
+      </Box>
+    </Container>
   );
 };
 
-export default GoogleCallback; 
+export default GoogleCallback;

@@ -24,61 +24,25 @@ export const axiosInstance = axios.create({
 });
 
 const authService = {
-  async login(email: string, password: string): Promise<AuthResponse> {
+  async sendVerificationCode(email: string): Promise<string> {
     try {
-      const response = await axiosInstance.post('/auth/login', {
-        email,
-        password
-      });
-      
-      // Salvar token
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-      }
-      
+      const response = await axiosInstance.post('/users/send-code', email);
       return response.data;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Error sending verification code:', error);
       throw error;
     }
   },
 
-  async loginWithGoogle(email: string, name: string): Promise<AuthResponse> {
+  async verifyCode(email: string, code: string): Promise<AuthResponse> {
     try {
-      const response = await axiosInstance.post('/auth/login/google', {
-        email,
-        name
-      });
-      
-      // Salvar token
+      const response = await axiosInstance.post('/users/verify-code', { email, code });
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
       }
-      
       return response.data;
     } catch (error) {
-      console.error('Google login error:', error);
-      throw error;
-    }
-  },
-
-  async register(name: string, email: string, password: string, phone: string): Promise<AuthResponse> {
-    try {
-      const response = await axiosInstance.post('/users/register', {
-        name,
-        email,
-        password,
-        phone
-      });
-      
-      // Salvar token
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('Register error:', error);
+      console.error('Error verifying code:', error);
       throw error;
     }
   },

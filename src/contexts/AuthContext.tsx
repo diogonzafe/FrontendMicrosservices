@@ -1,106 +1,122 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import authService, { AuthResponse } from '../services/authService';
+import authService from '../services/authService';
 
-interface AuthContextData {
-  user: AuthResponse | null;
-  login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: (email: string, name: string) => Promise<void>;
-  register: (name: string, email: string, password: string, phone: string) => Promise<void>;
-  logout: () => void;
+interface AuthContextType {
+  user: any | null;
+  isAuthenticated: boolean;
   isLoading: boolean;
+  sendVerificationCode: (email: string) => Promise<string>;
+  verifyCode: (email: string, code: string) => Promise<void>;
+  loginWithGoogle: () => void;
+  login: (userData: any, token: string) => void;
+  logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextData>({} as AuthContextData);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<any | null>(JSON.parse(localStorage.getItem('user') || 'null'));
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const [user, setUser] = useState<AuthResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const initializeAuth = async () => {
+    const checkAuth = async () => {
       try {
-        const storedUser = localStorage.getItem('@iFoodClone:user');
-        if (storedUser) {
-          const userData = JSON.parse(storedUser);
+        const token = localStorage.getItem('token');
+        if (token) {
           const isValid = await authService.validateToken();
-          
           if (isValid) {
+            const userData = JSON.parse(localStorage.getItem('user') || 'null');
             setUser(userData);
+            setIsAuthenticated(true);
           } else {
-            authService.handleLogout();
-            navigate('/login');
+            setUser(null);
+            setIsAuthenticated(false);
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
           }
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
-        authService.handleLogout();
-        navigate('/login');
+        console.error('Auth check failed:', error);
+        setUser(null);
+        setIsAuthenticated(false);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
       } finally {
         setIsLoading(false);
       }
     };
 
-    initializeAuth();
-  }, [navigate]);
-
-  const saveUserAndToken = useCallback((userData: AuthResponse) => {
-    localStorage.setItem('@iFoodClone:user', JSON.stringify(userData));
-    localStorage.setItem('token', userData.token);
-    setUser(userData);
+    checkAuth();
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const sendVerificationCode = async (email: string): Promise<string> => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const response = await authService.login(email, password);
-      saveUserAndToken(response);
-      navigate('/');
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+      const response = await authService.sendVerificationCode(email);
+      return response;
     } finally {
       setIsLoading(false);
     }
-  }, [saveUserAndToken, navigate]);
+  };
 
-  const loginWithGoogle = useCallback(async (email: string, name: string) => {
+  const verifyCode = async (email: string, code: string): Promise<void> => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const response = await authService.loginWithGoogle(email, name);
-      saveUserAndToken(response);
-      navigate('/');
-    } catch (error) {
-      console.error('Google login error:', error);
-      throw error;
+      const userData = await authService.verifyCode(email, code);
+      setUser(userData);
+      setIsAuthenticated(true);
+      localStorage.setItem('user', JSON.stringify(userData));
     } finally {
       setIsLoading(false);
     }
-  }, [saveUserAndToken, navigate]);
+  };
 
-  const register = useCallback(async (name: string, email: string, password: string, phone: string) => {
+  const loginWithGoogle = () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const response = await authService.register(name, email, password, phone);
-      saveUserAndToken(response);
-      navigate('/');
+      window.location.href = 'http://localhost:8080/auth/login/google';
     } catch (error) {
-      console.error('Register error:', error);
-      throw error;
-    } finally {
+      console.error('Error redirecting to Google login:', error);
       setIsLoading(false);
     }
-  }, [saveUserAndToken, navigate]);
+  };
 
-  const logout = useCallback(() => {
+  const login = (userData: any, token: string) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+    setIsAuthenticated(true);
+    navigate('/menu');
+  };
+
+  const logout = () => {
     authService.handleLogout();
     setUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     navigate('/login');
-  }, [navigate]);
+  };
 
   return (
-    <AuthContext.Provider value={{ user, login, loginWithGoogle, register, logout, isLoading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        isLoading,
+        sendVerificationCode,
+        verifyCode,
+        loginWithGoogle,
+        login,
+        logout
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -108,7 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
