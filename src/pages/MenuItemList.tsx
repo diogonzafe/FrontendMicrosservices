@@ -5,106 +5,208 @@ import { getMenuItemsByRestaurantId, deleteMenuItem } from '../services/restaura
 import { MenuItemDTO } from '../types/restaurant';
 
 const Container = styled.div`
-  max-width: 1000px;
+  padding: 24px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  background: linear-gradient(to bottom, #fff5f5, #ffffff);
+  min-height: 100vh;
 `;
 
-const Header = styled.div`
+const Header = styled.header`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eaeaea;
 `;
 
-const Title = styled.h2`
+const Title = styled.h1`
+  font-size: 28px;
+  font-weight: 700;
+  color: #ea1d2c;
   margin: 0;
-`;
+  position: relative;
+  padding-left: 16px;
 
-const Button = styled.button`
-  padding: 10px 20px;
-  background-color: #ff0000;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-
-  &:hover {
-    background-color: #cc0000;
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 2px;
+    height: 28px;
+    width: 4px;
+    background-color: #ea1d2c;
+    border-radius: 0 4px 4px 0;
   }
 `;
 
-const MenuItemGrid = styled.div`
+const Button = styled.button`
+  padding: 12px 24px;
+  background-color: #ea1d2c;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    background-color: #c8101e;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(234, 29, 44, 0.2);
+  }
+`;
+
+const BackButton = styled.button`
+  padding: 12px 24px;
+  background-color: transparent;
+  color: #ea1d2c;
+  border: 2px solid #ea1d2c;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    background-color: rgba(234, 29, 44, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(234, 29, 44, 0.1);
+  }
+`;
+
+const MenuItemListStyled = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  gap: 30px;
 `;
 
 const MenuItemCard = styled.div`
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 15px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 1px solid #f0f0f0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(234, 29, 44, 0.1);
+  }
+`;
+
+const MenuItemImage = styled.div`
+  width: 100%;
+  height: 160px;
+  background-color: #e0e0e0;
+  background-image: url('https://via.placeholder.com/320x160?text=Item+do+Menu');
+  background-size: cover;
+  background-position: center;
+  border-bottom: 1px solid #eee;
+`;
+
+const MenuItemContent = styled.div`
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 `;
 
 const MenuItemName = styled.h3`
   margin: 0;
+  font-size: 20px;
   color: #333;
+  font-weight: 700;
 `;
 
-const MenuItemInfo = styled.p`
+const MenuItemDescription = styled.p`
   margin: 0;
+  font-size: 14px;
   color: #666;
+  line-height: 1.5;
+  height: 42px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+`;
+
+const MenuItemPrice = styled.div`
+  font-size: 18px;
+  color: #ea1d2c;
+  font-weight: 700;
+  margin-top: 10px;
 `;
 
 const ActionButtons = styled.div`
   display: flex;
-  gap: 10px;
-  margin-top: auto;
+  justify-content: space-between;
+  margin-top: 15px;
+  padding: 0 20px 20px 20px;
 `;
 
 const ActionButton = styled.button`
-  flex: 1;
-  padding: 8px 0;
+  padding: 10px 20px;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 600;
+  color: white;
+  transition: background-color 0.2s, transform 0.2s;
 
   &.edit {
     background-color: #ffa500;
-    color: white;
+
+    &:hover {
+      background-color: #e08600;
+      transform: translateY(-2px);
+    }
   }
 
   &.delete {
     background-color: #ff6347;
-    color: white;
-  }
 
-  &:hover {
-    opacity: 0.9;
+    &:hover {
+      background-color: #e0414e;
+      transform: translateY(-2px);
+    }
   }
 `;
 
 const ErrorMessage = styled.div`
-  color: red;
-  text-align: center;
   margin: 20px 0;
+  padding: 12px 16px;
+  background-color: #ffebee;
+  color: #c62828;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
 `;
 
 const LoadingMessage = styled.div`
   text-align: center;
-  margin: 20px 0;
+  margin: 30px 0;
   color: #666;
+  font-size: 16px;
 `;
 
 const EmptyMessage = styled.div`
   text-align: center;
-  margin: 20px 0;
+  margin: 30px 0;
   color: #666;
+  font-size: 16px;
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 `;
 
 const MenuItemList: React.FC = () => {
@@ -113,6 +215,34 @@ const MenuItemList: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItemDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleBack = () => {
+    navigate('/restaurants');
+  };
+
+  const handleAddMenuItem = () => {
+    if (restaurantId) {
+      navigate(`/restaurants/${restaurantId}/menu-items/create`);
+    }
+  };
+
+  const handleEditMenuItem = (id: number) => {
+    if (restaurantId) {
+      navigate(`/restaurants/${restaurantId}/menu-items/edit/${id}`);
+    }
+  };
+
+  const handleDeleteMenuItem = async (id: number) => {
+    if (window.confirm('Tem certeza que deseja excluir este item do menu? Esta ação não pode ser desfeita.')) {
+      try {
+        await deleteMenuItem(id);
+        setMenuItems(menuItems.filter(item => item.id !== id));
+      } catch (err) {
+        setError('Falha ao excluir item do menu. Por favor, tente novamente.');
+        console.error(err);
+      }
+    }
+  };
 
   useEffect(() => {
     const fetchMenuItems = async () => {
@@ -123,7 +253,7 @@ const MenuItemList: React.FC = () => {
           setMenuItems(data);
         }
       } catch (err) {
-        setError('Failed to load menu items. Please try again later.');
+        setError('Falha ao carregar itens do menu. Por favor, tente novamente mais tarde.');
         console.error(err);
       } finally {
         setLoading(false);
@@ -133,36 +263,19 @@ const MenuItemList: React.FC = () => {
     fetchMenuItems();
   }, [restaurantId]);
 
-  const handleAddMenuItem = () => {
-    navigate(`/restaurants/${restaurantId}/menu-items/create`);
-  };
-
-  const handleEdit = (id: number) => {
-    navigate(`/restaurants/${restaurantId}/menu-items/edit/${id}`);
-  };
-
-  const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this menu item?')) {
-      try {
-        await deleteMenuItem(id);
-        setMenuItems(menuItems.filter(item => item.id !== id));
-      } catch (err) {
-        setError('Failed to delete menu item. Please try again.');
-        console.error(err);
-      }
-    }
-  };
-
   if (loading) {
-    return <LoadingMessage>Loading menu items...</LoadingMessage>;
+    return <LoadingMessage>Carregando itens do menu...</LoadingMessage>;
   }
 
   if (error) {
     return (
       <Container>
         <Header>
-          <Title>Menu Items</Title>
-          <Button onClick={handleAddMenuItem}>Adicionar Item ao Menu</Button>
+          <Title>Menu do Restaurante</Title>
+          <div>
+            <BackButton onClick={handleBack}>Voltar</BackButton>
+            <Button onClick={handleAddMenuItem}>Adicionar Item ao Menu</Button>
+          </div>
         </Header>
         <ErrorMessage>{error}</ErrorMessage>
       </Container>
@@ -173,10 +286,13 @@ const MenuItemList: React.FC = () => {
     return (
       <Container>
         <Header>
-          <Title>Menu Items</Title>
-          <Button onClick={handleAddMenuItem}>Adicionar Item ao Menu</Button>
+          <Title>Menu do Restaurante</Title>
+          <div>
+            <BackButton onClick={handleBack}>Voltar</BackButton>
+            <Button onClick={handleAddMenuItem}>Adicionar Item ao Menu</Button>
+          </div>
         </Header>
-        <EmptyMessage>This restaurant doesn't have any menu items yet. Click "Adicionar Item ao Menu" to create one.</EmptyMessage>
+        <EmptyMessage>Este restaurante ainda não tem itens no menu. Clique em "Adicionar Item ao Menu" para criar o primeiro!</EmptyMessage>
       </Container>
     );
   }
@@ -184,26 +300,32 @@ const MenuItemList: React.FC = () => {
   return (
     <Container>
       <Header>
-        <Title>Menu Items</Title>
-        <Button onClick={handleAddMenuItem}>Adicionar Item ao Menu</Button>
+        <Title>Menu do Restaurante</Title>
+        <div>
+          <BackButton onClick={handleBack}>Voltar</BackButton>
+          <Button onClick={handleAddMenuItem}>Adicionar Item ao Menu</Button>
+        </div>
       </Header>
-      <MenuItemGrid>
+      <MenuItemListStyled>
         {menuItems.map(item => (
           <MenuItemCard key={item.id}>
-            <MenuItemName>{item.name}</MenuItemName>
-            <MenuItemInfo>{item.description}</MenuItemInfo>
-            <MenuItemInfo>Price: R${item.price.toFixed(2)}</MenuItemInfo>
+            <MenuItemImage />
+            <MenuItemContent>
+              <MenuItemName>{item.name}</MenuItemName>
+              <MenuItemDescription>{item.description || 'Sem descrição disponível'}</MenuItemDescription>
+              <MenuItemPrice>R$ {item.price.toFixed(2)}</MenuItemPrice>
+            </MenuItemContent>
             <ActionButtons>
-              <ActionButton className="edit" onClick={() => handleEdit(item.id || 0)}>
+              <ActionButton className="edit" onClick={() => handleEditMenuItem(item.id || 0)}>
                 Editar
               </ActionButton>
-              <ActionButton className="delete" onClick={() => handleDelete(item.id || 0)}>
+              <ActionButton className="delete" onClick={() => handleDeleteMenuItem(item.id || 0)}>
                 Excluir
               </ActionButton>
             </ActionButtons>
           </MenuItemCard>
         ))}
-      </MenuItemGrid>
+      </MenuItemListStyled>
     </Container>
   );
 };

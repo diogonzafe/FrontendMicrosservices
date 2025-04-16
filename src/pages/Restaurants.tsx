@@ -5,150 +5,223 @@ import { getAllRestaurants, deleteRestaurant } from '../services/restaurantServi
 import { RestaurantDTO } from '../types/restaurant';
 
 const Container = styled.div`
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 24px;
+  background: linear-gradient(to bottom, #ffffff, #f9f9f9);
+  min-height: 100vh;
 `;
 
-const Header = styled.div`
+const Header = styled.header`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eaeaea;
 `;
 
-const Title = styled.h2`
+const Title = styled.h1`
+  font-size: 28px;
+  font-weight: 700;
+  color: #ea1d2c;
   margin: 0;
+  position: relative;
+  padding-left: 16px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 2px;
+    height: 28px;
+    width: 4px;
+    background-color: #ea1d2c;
+    border-radius: 0 4px 4px 0;
+  }
 `;
 
 const Button = styled.button`
-  padding: 10px 20px;
-  background-color: #ff0000;
+  padding: 12px 24px;
+  background-color: #ea1d2c;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
 
   &:hover {
-    background-color: #cc0000;
+    background-color: #c8101e;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(234, 29, 44, 0.2);
+  }
+`;
+
+const BackToMenuButton = styled.button`
+  padding: 12px 24px;
+  background-color: transparent;
+  color: #ea1d2c;
+  border: 2px solid #ea1d2c;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    background-color: rgba(234, 29, 44, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(234, 29, 44, 0.1);
   }
 `;
 
 const RestaurantList = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  gap: 24px;
+  margin-top: 24px;
 `;
 
 const RestaurantCard = styled.div`
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 15px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s, box-shadow 0.3s;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  justify-content: space-between;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  }
 `;
 
-const RestaurantName = styled.h3`
-  margin: 0 0 10px 0;
-  color: #333;
-`;
-
-const RestaurantInfo = styled.p`
-  margin: 5px 0;
-  color: #666;
-`;
-
-const ActionButtons = styled.div`
+const RestaurantImage = styled.div`
+  width: 100%;
+  height: 160px;
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  margin-bottom: 16px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  color: #999;
+`;
+
+const RestaurantName = styled.h2`
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px 0;
+`;
+
+const RestaurantDescription = styled.p`
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 16px 0;
+  flex-grow: 1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+`;
+
+const RestaurantActions = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
 `;
 
 const ActionButton = styled.button`
-  padding: 8px 12px;
-  border: none;
-  border-radius: 4px;
+  flex: 1;
+  padding: 10px 0;
+  background-color: transparent;
+  color: #ea1d2c;
+  border: 2px solid #ea1d2c;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
-  color: white;
+  font-weight: 600;
+  transition: background-color 0.2s, transform 0.2s;
+
+  &:hover {
+    background-color: rgba(234, 29, 44, 0.05);
+    transform: translateY(-2px);
+  }
 
   &.edit {
-    background-color: #ffa500;
+    border-color: #f39c12;
+    color: #f39c12;
+
+    &:hover {
+      background-color: rgba(243, 156, 18, 0.05);
+    }
   }
 
   &.delete {
-    background-color: #ff6347;
+    border-color: #e74c3c;
+    color: #e74c3c;
+
+    &:hover {
+      background-color: rgba(231, 76, 60, 0.05);
+    }
   }
-
-  &.view-menu {
-    background-color: #4caf50;
-  }
-
-  &.add-item {
-    background-color: #2196f3;
-  }
-
-  &:hover {
-    opacity: 0.9;
-  }
-`;
-
-const ErrorMessage = styled.div`
-  color: red;
-  text-align: center;
-  margin: 20px 0;
-`;
-
-const LoadingMessage = styled.div`
-  text-align: center;
-  margin: 20px 0;
-  color: #666;
 `;
 
 const EmptyMessage = styled.div`
   text-align: center;
-  margin: 20px 0;
+  padding: 40px;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  font-size: 16px;
   color: #666;
+  margin-top: 24px;
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+  width: 100%;
+`;
+
+const ErrorContainer = styled.div`
+  text-align: center;
+  padding: 48px;
+  background-color: #fff5f5;
+  color: #ea1d2c;
+  border-radius: 16px;
+  margin-top: 24px;
+  border: 1px solid #ffe0e0;
+`;
+
+const ErrorText = styled.p`
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0;
 `;
 
 const Restaurants: React.FC = () => {
   const navigate = useNavigate();
   const [restaurants, setRestaurants] = useState<RestaurantDTO[]>([]);
-  const [filteredRestaurants, setFilteredRestaurants] = useState<RestaurantDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchRestaurants = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
         const data = await getAllRestaurants();
         setRestaurants(data);
-
-        // Get ownerId from localStorage
-        const userDataStr = localStorage.getItem('user_data');
-        let ownerId = 1; // Default fallback
-        if (userDataStr) {
-          try {
-            const userData = JSON.parse(userDataStr);
-            if (userData && userData.id) {
-              ownerId = userData.id;
-            } else if (userData && userData.user && userData.user.id) {
-              ownerId = userData.user.id;
-            }
-          } catch (parseError) {
-            console.error('Error parsing user_data from localStorage:', parseError);
-          }
-        }
-
-        // Filter restaurants by ownerId
-        const userRestaurants = data.filter(restaurant => restaurant.ownerId === ownerId);
-        setFilteredRestaurants(userRestaurants);
       } catch (err) {
-        setError('Failed to load restaurants. Please try again later.');
+        setError('Erro ao carregar restaurantes.');
         console.error(err);
       } finally {
         setLoading(false);
@@ -158,92 +231,72 @@ const Restaurants: React.FC = () => {
     fetchRestaurants();
   }, []);
 
-  const handleAddRestaurant = () => {
-    navigate('/restaurant/create');
+  const handleCreateRestaurant = () => {
+    navigate('/restaurants/create');
+  };
+
+  const handleBackToMenu = () => {
+    navigate('/menu');
   };
 
   const handleEditRestaurant = (id: number) => {
     navigate(`/restaurants/edit/${id}`);
   };
 
+  const handleViewMenu = (restaurantId: number) => {
+    navigate(`/restaurants/${restaurantId}/menu-items`);
+  };
+
   const handleDeleteRestaurant = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this restaurant?')) {
+    if (window.confirm('Tem certeza que deseja excluir este restaurante? Esta ação não pode ser desfeita.')) {
       try {
         await deleteRestaurant(id);
         setRestaurants(restaurants.filter(restaurant => restaurant.id !== id));
-        setFilteredRestaurants(filteredRestaurants.filter(restaurant => restaurant.id !== id));
       } catch (err) {
-        setError('Failed to delete restaurant. Please try again.');
+        setError('Falha ao excluir restaurante. Por favor, tente novamente.');
         console.error(err);
       }
     }
   };
 
-  const handleViewMenu = (id: number) => {
-    navigate(`/restaurants/${id}/menu-items`);
-  };
-
-  const handleAddMenuItem = (id: number) => {
-    navigate(`/restaurants/${id}/menu-items/create`);
-  };
-
-  if (loading) {
-    return <LoadingMessage>Loading restaurants...</LoadingMessage>;
-  }
-
-  if (error) {
-    return (
-      <Container>
-        <Header>
-          <Title>Meus Restaurantes</Title>
-          <Button onClick={handleAddRestaurant}>Adicionar Restaurante</Button>
-        </Header>
-        <ErrorMessage>{error}</ErrorMessage>
-      </Container>
-    );
-  }
-
-  if (filteredRestaurants.length === 0) {
-    return (
-      <Container>
-        <Header>
-          <Title>Meus Restaurantes</Title>
-          <Button onClick={handleAddRestaurant}>Adicionar Restaurante</Button>
-        </Header>
-        <EmptyMessage>You don't have any restaurants yet. Click "Adicionar Restaurante" to create one.</EmptyMessage>
-      </Container>
-    );
-  }
-
   return (
     <Container>
       <Header>
         <Title>Meus Restaurantes</Title>
-        <Button onClick={handleAddRestaurant}>Adicionar Restaurante</Button>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <BackToMenuButton onClick={handleBackToMenu}>Voltar ao Menu Principal</BackToMenuButton>
+          <Button onClick={handleCreateRestaurant}>Criar Restaurante</Button>
+        </div>
       </Header>
-      <RestaurantList>
-        {filteredRestaurants.map(restaurant => (
-          <RestaurantCard key={restaurant.id}>
-            <RestaurantName>{restaurant.name}</RestaurantName>
-            <RestaurantInfo>Categoria: {restaurant.category || 'N/A'}</RestaurantInfo>
-            <RestaurantInfo>Address: {restaurant.address.street}, {restaurant.address.number}, {restaurant.address.city}, {restaurant.address.state}</RestaurantInfo>
-            <ActionButtons>
-              <ActionButton className="edit" onClick={() => handleEditRestaurant(restaurant.id || 0)}>
-                Editar Restaurante
-              </ActionButton>
-              <ActionButton className="delete" onClick={() => handleDeleteRestaurant(restaurant.id || 0)}>
-                Excluir Restaurante
-              </ActionButton>
-              <ActionButton className="view-menu" onClick={() => handleViewMenu(restaurant.id || 0)}>
-                Ver Menu
-              </ActionButton>
-              <ActionButton className="add-item" onClick={() => handleAddMenuItem(restaurant.id || 0)}>
-                Adicionar Item ao Menu
-              </ActionButton>
-            </ActionButtons>
-          </RestaurantCard>
-        ))}
-      </RestaurantList>
+
+      {loading ? (
+        <LoadingContainer>
+          <div>Carregando...</div>
+        </LoadingContainer>
+      ) : error ? (
+        <ErrorContainer>
+          <ErrorText>{error}</ErrorText>
+        </ErrorContainer>
+      ) : restaurants.length === 0 ? (
+        <EmptyMessage>
+          Nenhum restaurante cadastrado
+        </EmptyMessage>
+      ) : (
+        <RestaurantList>
+          {restaurants.map((restaurant) => (
+            <RestaurantCard key={restaurant.id}>
+              <RestaurantImage>🍴</RestaurantImage>
+              <RestaurantName>{restaurant.name}</RestaurantName>
+              <RestaurantDescription>{restaurant.address?.street || 'Descrição não disponível'}</RestaurantDescription>
+              <RestaurantActions>
+                <ActionButton onClick={() => handleViewMenu(restaurant.id ?? 0)}>Ver Menu</ActionButton>
+                <ActionButton className="edit" onClick={() => handleEditRestaurant(restaurant.id ?? 0)}>Editar</ActionButton>
+                <ActionButton className="delete" onClick={() => handleDeleteRestaurant(restaurant.id ?? 0)}>Excluir</ActionButton>
+              </RestaurantActions>
+            </RestaurantCard>
+          ))}
+        </RestaurantList>
+      )}
     </Container>
   );
 };

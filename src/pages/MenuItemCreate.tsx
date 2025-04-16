@@ -2,78 +2,189 @@ import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { createMenuItem } from '../services/restaurantService';
-import { MenuItemDTO } from '../types/restaurant';
 
 const Container = styled.div`
+  padding: 24px;
   max-width: 800px;
   margin: 0 auto;
-  padding: 20px;
+  background: linear-gradient(to bottom, #fff5f5, #ffffff);
+  min-height: 100vh;
+`;
+
+const Header = styled.header`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eaeaea;
+`;
+
+const Title = styled.h1`
+  font-size: 28px;
+  font-weight: 700;
+  color: #ea1d2c;
+  margin: 0;
+  position: relative;
+  padding-left: 16px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 2px;
+    height: 28px;
+    width: 4px;
+    background-color: #ea1d2c;
+    border-radius: 0 4px 4px 0;
+  }
+`;
+
+const BackButton = styled.button`
+  padding: 12px 24px;
+  background-color: transparent;
+  color: #ea1d2c;
+  border: 2px solid #ea1d2c;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    background-color: rgba(234, 29, 44, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(234, 29, 44, 0.1);
+  }
 `;
 
 const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  background-color: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  padding: 24px;
+  border: 1px solid #f0f0f0;
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 20px;
+`;
+
+const Label = styled.label`
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #333;
 `;
 
 const Input = styled.input`
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  color: #333;
+  background-color: #f9f9f9;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: #ea1d2c;
+    box-shadow: 0 0 0 3px rgba(234, 29, 44, 0.1);
+  }
+
+  &::placeholder {
+    color: #999;
+  }
 `;
 
 const TextArea = styled.textarea`
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  height: 100px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  color: #333;
+  background-color: #f9f9f9;
+  min-height: 100px;
+  resize: vertical;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: #ea1d2c;
+    box-shadow: 0 0 0 3px rgba(234, 29, 44, 0.1);
+  }
+
+  &::placeholder {
+    color: #999;
+  }
 `;
 
-const Button = styled.button`
-  padding: 10px 20px;
-  background-color: #ff0000;
+const SubmitButton = styled.button`
+  width: 100%;
+  padding: 16px;
+  background-color: #ea1d2c;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
-  align-self: flex-start;
+  font-size: 18px;
+  font-weight: 700;
+  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 12px rgba(234, 29, 44, 0.2);
+  margin-top: 16px;
 
   &:hover {
-    background-color: #cc0000;
+    background-color: #c8101e;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(234, 29, 44, 0.3);
   }
 
   &:disabled {
     background-color: #cccccc;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
   }
 `;
 
 const ErrorMessage = styled.div`
-  color: red;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background-color: #ffebee;
+  color: #c62828;
+  border-radius: 8px;
   font-size: 14px;
+  font-weight: 500;
+`;
+
+const LoadingOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 `;
 
 const MenuItemCreate: React.FC = () => {
   const navigate = useNavigate();
   const { restaurantId } = useParams<{ restaurantId: string }>();
-  const [menuItem, setMenuItem] = useState<MenuItemDTO>({
-    restaurantId: Number(restaurantId),
-    name: '',
-    description: '',
-    price: 0
-  });
-  const [isLoading, setIsLoading] = useState(false);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
   const [error, setError] = useState<string | null>(null);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setMenuItem(prev => ({ ...prev, [name]: name === 'price' ? parseFloat(value) || 0 : value }));
-  };
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!menuItem.name || !menuItem.price) {
-      setError('Please fill in all required fields');
+    if (!name || !price) {
+      setError('Por favor, preencha todos os campos obrigatórios');
       return;
     }
 
@@ -82,19 +193,19 @@ const MenuItemCreate: React.FC = () => {
 
     try {
       if (restaurantId) {
-        const restaurantIdNum = Number(restaurantId);
-        await createMenuItem(restaurantIdNum, {
-          restaurantId: restaurantIdNum,
-          name: menuItem.name,
-          description: menuItem.description,
-          price: menuItem.price
-        });
-        navigate('/restaurants');
+        const menuItemData = {
+          name,
+          description,
+          price: parseFloat(price),
+          restaurantId: Number(restaurantId)
+        };
+        await createMenuItem(Number(restaurantId), menuItemData);
+        navigate(`/restaurants/${restaurantId}/menu-items`);
       } else {
-        setError('Invalid restaurant ID');
+        setError('ID do restaurante inválido');
       }
     } catch (err) {
-      setError('Failed to create menu item. Please try again.');
+      setError('Falha ao criar item do menu. Por favor, tente novamente.');
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -103,37 +214,59 @@ const MenuItemCreate: React.FC = () => {
 
   return (
     <Container>
-      <h2>Create Menu Item</h2>
+      <Header>
+        <Title>Criar Item de Menu</Title>
+        <BackButton onClick={() => navigate(-1)}>Voltar</BackButton>
+      </Header>
+
       <Form onSubmit={handleSubmit}>
-        <Input
-          type="text"
-          name="name"
-          placeholder="Name"
-          value={menuItem.name}
-          onChange={handleChange}
-          required
-        />
-        <TextArea
-          name="description"
-          placeholder="Description"
-          value={menuItem.description}
-          onChange={handleChange}
-        />
-        <Input
-          type="number"
-          name="price"
-          placeholder="Price"
-          value={menuItem.price}
-          onChange={handleChange}
-          step="0.01"
-          min="0"
-          required
-        />
+        <FormGroup>
+          <Label htmlFor="name">Nome do Item</Label>
+          <Input
+            type="text"
+            id="name"
+            name="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Digite o nome do item"
+            required
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Label htmlFor="description">Descrição</Label>
+          <TextArea
+            id="description"
+            name="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Digite a descrição do item"
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Label htmlFor="price">Preço (R$)</Label>
+          <Input
+            type="number"
+            id="price"
+            name="price"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="Digite o preço do item"
+            step="0.01"
+            min="0"
+            required
+          />
+        </FormGroup>
+
         {error && <ErrorMessage>{error}</ErrorMessage>}
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? 'Creating...' : 'Create Menu Item'}
-        </Button>
+
+        <SubmitButton type="submit" disabled={isLoading}>
+          {isLoading ? 'Criando...' : 'Criar Item de Menu'}
+        </SubmitButton>
       </Form>
+
+      {isLoading && <LoadingOverlay>Carregando...</LoadingOverlay>}
     </Container>
   );
 };
