@@ -25,19 +25,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('token');
+        console.log('Checking auth token in localStorage:', token ? 'Token exists' : 'No token found');
         if (token) {
           const isValid = await authService.validateToken();
+          console.log('Token validation result:', isValid);
           if (isValid) {
             const userData = JSON.parse(localStorage.getItem('user') || 'null');
+            console.log('User data from localStorage:', userData);
             setUser(userData);
             setIsAuthenticated(true);
           } else {
+            console.log('Token invalid, clearing localStorage');
             setUser(null);
             setIsAuthenticated(false);
             localStorage.removeItem('token');
             localStorage.removeItem('user');
           }
         } else {
+          console.log('No token, setting user as unauthenticated');
           setUser(null);
           setIsAuthenticated(false);
         }

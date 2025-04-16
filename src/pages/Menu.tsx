@@ -63,7 +63,7 @@ const Menu = () => {
 
   const handleAddRestaurant = () => {
     handleClose();
-    navigate('/add-restaurant');
+    navigate('/restaurants');
   };
 
   const handleLogout = () => {
@@ -198,7 +198,7 @@ const Menu = () => {
               <ListItemIcon>
                 <AddBusinessIcon fontSize="small" />
               </ListItemIcon>
-              Adicionar Restaurante
+              Meus Restaurantes
             </MenuItem>
 
             <MenuItem onClick={handleLogout} sx={{
