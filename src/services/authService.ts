@@ -1,6 +1,70 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const API_URL = 'http://localhost:8080';
+
+export const validateToken = async (token: string): Promise<boolean> => {
+  try {
+    const response = await axios.get(`${API_URL}/users/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.status === 200;
+  } catch (error) {
+    console.error('Token validation error:', error);
+    return false;
+  }
+};
+
+export const login = async (email: string, password: string) => {
+  const response = await axios.post(`${API_URL}/auth/login`, {
+    email,
+    password
+  });
+  return response.data;
+};
+
+export const register = async (userData: any) => {
+  const response = await axios.post(`${API_URL}/auth/register`, userData);
+  return response.data;
+};
+
+export const getCurrentUser = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+
+  try {
+    const response = await axios.get(`${API_URL}/users/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching current user:', error);
+    return null;
+  }
+};
+
+export const updateUser = async (userData: any) => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No token found');
+
+  const response = await axios.put(`${API_URL}/users/me`, userData, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  return response.data;
+};
+
+export const logout = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+};
 
 export interface AuthResponse {
   name: string;

@@ -232,7 +232,7 @@ const Restaurants: React.FC = () => {
   }, []);
 
   const handleCreateRestaurant = () => {
-    navigate('/restaurants/create');
+    navigate('/restaurant/create');
   };
 
   const handleBackToMenu = () => {

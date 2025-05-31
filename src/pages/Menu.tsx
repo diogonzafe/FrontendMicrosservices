@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -19,7 +19,20 @@ import {
   Fade,
   Paper,
   InputBase,
-  Container
+  Container,
+  Button,
+  TextField,
+  InputAdornment,
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  Tabs,
+  Tab,
+  Rating,
+  Divider,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import { 
   Restaurant, 
@@ -30,23 +43,208 @@ import {
   TrendingUp,
   LocalPizza,
   LocalDining,
-  Fastfood
+  Fastfood,
+  ShoppingCart as ShoppingCartIcon,
+  AddShoppingCart
 } from '@mui/icons-material';
 import FastfoodIcon from '@mui/icons-material/Fastfood';
 import PersonIcon from '@mui/icons-material/Person';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AddBusinessIcon from '@mui/icons-material/AddBusiness';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme as useThemeContext } from '../contexts/ThemeContext';
 import { Brightness4, Brightness7 } from '@mui/icons-material';
+import { useCart } from '../contexts/CartContext';
+import axios from 'axios';
+
+interface Restaurant {
+  id: number;
+  name: string;
+  image: string;
+  rating: number;
+  cuisineType: string;
+  deliveryTime: string;
+  deliveryFee: number;
+  isFavorite: boolean;
+  distance: number;
+}
+
+interface Product {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  image: string;
+  restaurantId: number;
+  restaurantName: string;
+  isFavorite: boolean;
+  cuisineType: string;
+}
 
 const Menu = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const themeContext = useThemeContext();
+  const { cart, addToCart } = useCart();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTab, setSelectedTab] = useState(0);
+  const [filters, setFilters] = useState({
+    favorites: false,
+    nearby: false,
+    cuisineType: '',
+    sortBy: 'rating'
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      console.log('Usuário não autenticado, redirecionando para login');
+      navigate('/login');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.log('Token não encontrado, redirecionando para login');
+      navigate('/login');
+      return;
+    }
+
+    fetchRestaurants();
+    fetchProducts();
+  }, [filters, isAuthenticated, navigate]);
+
+  const fetchRestaurants = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('Token não encontrado em fetchRestaurants');
+        navigate('/login');
+        return;
+      }
+
+      console.log('Buscando restaurantes com filtros:', filters);
+      const response = await axios.get('/api/restaurants', {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          favorites: filters.favorites,
+          nearby: filters.nearby,
+          cuisineType: filters.cuisineType || undefined,
+          sortBy: filters.sortBy
+        }
+      });
+      console.log('Restaurantes encontrados:', response.data);
+      setRestaurants(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar restaurantes:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        console.log('Token inválido ou expirado, redirecionando para login');
+        navigate('/login');
+        return;
+      }
+      setError('Não foi possível carregar os restaurantes. Por favor, tente novamente.');
+      setRestaurants([]);
+    }
+  };
+
+  const fetchProducts = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('Token não encontrado em fetchProducts');
+        navigate('/login');
+        return;
+      }
+
+      console.log('Buscando restaurantes...');
+      // Primeiro, buscar todos os restaurantes
+      const restaurantsResponse = await axios.get('/api/restaurants', {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('Restaurantes encontrados:', restaurantsResponse.data);
+
+      // Depois, buscar os itens do menu de cada restaurante
+      const allProducts = [];
+      for (const restaurant of restaurantsResponse.data) {
+        try {
+          console.log(`Buscando menu do restaurante ${restaurant.id}...`);
+          const menuResponse = await axios.get(`/api/restaurants/${restaurant.id}/menu-items`, {
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          console.log(`Menu do restaurante ${restaurant.id}:`, menuResponse.data);
+          
+          // Adicionar informações do restaurante aos produtos
+          const productsWithRestaurant = menuResponse.data.map(item => ({
+            ...item,
+            restaurantId: restaurant.id,
+            restaurantName: restaurant.name,
+            cuisineType: restaurant.category,
+            price: Number(item.price) || 0,
+            rating: Number(item.rating) || 0,
+            isFavorite: Boolean(item.isFavorite)
+          }));
+          
+          allProducts.push(...productsWithRestaurant);
+        } catch (error) {
+          console.error(`Erro ao buscar menu do restaurante ${restaurant.id}:`, error);
+        }
+      }
+      
+      // Aplicar filtros
+      const filteredProducts = allProducts.filter(product => {
+        if (filters.favorites && !product.isFavorite) return false;
+        if (filters.cuisineType && product.cuisineType !== filters.cuisineType) return false;
+        return true;
+      });
+
+      // Ordenar produtos
+      const sortedProducts = [...filteredProducts].sort((a, b) => {
+        switch (filters.sortBy) {
+          case 'rating':
+            return (b.rating || 0) - (a.rating || 0);
+          case 'price':
+            return (a.price || 0) - (b.price || 0);
+          default:
+            return 0;
+        }
+      });
+      
+      console.log('Produtos filtrados e ordenados:', sortedProducts);
+      setProducts(sortedProducts);
+    } catch (error) {
+      console.error('Erro ao buscar produtos:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        console.log('Token inválido ou expirado, redirecionando para login');
+        navigate('/login');
+        return;
+      }
+      setError('Não foi possível carregar os produtos. Por favor, tente novamente.');
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -71,12 +269,60 @@ const Menu = () => {
     logout();
   };
 
-  const categories = [
-    { icon: <LocalPizza />, label: 'Pizza' },
-    { icon: <LocalDining />, label: 'Brasileira' },
-    { icon: <Fastfood />, label: 'Lanches' },
-    { icon: <Restaurant />, label: 'Japonesa' },
-  ];
+  const handleShoppingCart = () => {
+    navigate('/shopping-cart');
+  };
+
+  const handleAddToCart = (product: Product) => {
+    addToCart({
+      name: product.name,
+      price: product.price,
+      restaurantId: product.restaurantId,
+      restaurantName: product.restaurantName
+    });
+  };
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setSelectedTab(newValue);
+  };
+
+  const handleFilterChange = (filter: string, value: any) => {
+    setFilters(prev => ({ ...prev, [filter]: value }));
+  };
+
+  const toggleFavorite = async (type: 'restaurant' | 'product', id: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`/api/${type}s/${id}/favorite`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (type === 'restaurant') {
+        setRestaurants(prev => prev.map(r => 
+          r.id === id ? { ...r, isFavorite: !r.isFavorite } : r
+        ));
+      } else {
+        setProducts(prev => prev.map(p => 
+          p.id === id ? { ...p, isFavorite: !p.isFavorite } : p
+        ));
+      }
+    } catch (error) {
+      console.error(`Erro ao atualizar favorito do ${type}:`, error);
+    }
+  };
+
+  const handleViewRestaurantMenu = (restaurantId: number) => {
+    console.log('Navegando para o menu do restaurante:', restaurantId);
+    navigate(`/restaurants/${restaurantId}/menu`);
+  };
+
+  const filteredRestaurants = restaurants.filter(restaurant =>
+    restaurant.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <Box sx={{ flexGrow: 1, bgcolor: themeContext.theme === 'dark' ? '#1A1A1A' : 'background.default', minHeight: '100vh' }}>
@@ -98,6 +344,13 @@ const Menu = () => {
             <IconButton onClick={themeContext.toggleTheme} sx={{ ml: 1 }}>
               {themeContext.theme === 'dark' ? <Brightness7 /> : <Brightness4 />}
             </IconButton>
+            <Tooltip title="Sacola de Compras">
+              <IconButton onClick={handleShoppingCart} sx={{ ml: 1 }}>
+                <Badge badgeContent={cart.length} color="secondary">
+                  <ShoppingCartIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Opções da conta">
               <IconButton
                 onClick={handleClick}
@@ -198,21 +451,21 @@ const Menu = () => {
               <ListItemIcon>
                 <AddBusinessIcon fontSize="small" />
               </ListItemIcon>
-              Meus Restaurantes
+              Restaurantes
             </MenuItem>
 
             <MenuItem onClick={handleLogout} sx={{
               py: 1.5,
-              color: themeContext.theme === 'dark' ? '#FF4B5A' : 'error.main',
+              color: themeContext.theme === 'dark' ? '#FFFFFF' : 'text.primary',
               '&:hover': {
-                bgcolor: themeContext.theme === 'dark' ? 'rgba(255, 75, 90, 0.2)' : 'rgba(211, 47, 47, 0.04)',
+                bgcolor: themeContext.theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)',
                 '& .MuiListItemIcon-root': {
-                  color: themeContext.theme === 'dark' ? '#FF4B5A' : 'error.main'
+                  color: themeContext.theme === 'dark' ? '#FF4B5A' : 'primary.main'
                 }
               }
             }}>
               <ListItemIcon>
-                <LogoutIcon fontSize="small" color="error" />
+                <LogoutIcon fontSize="small" />
               </ListItemIcon>
               Sair
             </MenuItem>
@@ -223,353 +476,161 @@ const Menu = () => {
       <Toolbar /> {/* Espaçamento para o AppBar fixo */}
 
       <Container maxWidth="lg">
-        {/* Banner */}
-        <Box
-          sx={{
-            mt: 4,
-            mb: 6,
-            p: 4,
-            borderRadius: 4,
-            position: 'relative',
-            overflow: 'hidden',
-            bgcolor: themeContext.theme === 'dark' ? '#2D2D2D' : 'primary.main',
-            color: themeContext.theme === 'dark' ? '#FFFFFF' : 'primary.contrastText',
-            boxShadow: themeContext.theme === 'dark' ? '0 8px 32px rgba(255, 75, 90, 0.1)' : '0 8px 32px rgba(234, 29, 44, 0.2)',
-            transition: 'transform 0.3s ease-in-out',
-            '&:hover': {
-              transform: 'translateY(-4px)',
-            },
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: themeContext.theme === 'dark' ? 'linear-gradient(45deg, #2D2D2D 30%, #3A3A3A 90%)' : 'linear-gradient(45deg, #EA1D2C 30%, #FF4B5A 90%)',
-              opacity: 0.9,
-              zIndex: 1,
-            }
-          }}
-        >
-          <Box sx={{ position: 'relative', zIndex: 2 }}>
-            <Typography variant="h4" fontWeight="bold" sx={{ mb: 2, position: 'relative', zIndex: 2, color: themeContext.theme === 'dark' ? '#FFFFFF' : 'primary.contrastText' }}>
-              Olá, {user?.name || 'Usuário'}!
-            </Typography>
-            <Typography variant="body1" sx={{ mb: 4, position: 'relative', zIndex: 2, maxWidth: 600, color: themeContext.theme === 'dark' ? '#CCCCCC' : 'primary.contrastText' }}>
-              Explore os melhores restaurantes da região e receba suas refeições favoritas em minutos.
-            </Typography>
-
-            {/* Barra de pesquisa */}
-            <Paper
-              component="form"
-              sx={{
-                p: '2px 4px',
-                display: 'flex',
-                alignItems: 'center',
-                width: { xs: '100%', sm: '70%', md: '50%' },
-                bgcolor: themeContext.theme === 'dark' ? '#3A3A3A' : 'background.paper',
-                color: themeContext.theme === 'dark' ? '#FFFFFF' : 'text.primary',
-                borderRadius: 3,
-                boxShadow: themeContext.theme === 'dark' ? '0 4px 12px rgba(255, 255, 255, 0.05)' : '0 4px 12px rgba(0, 0, 0, 0.1)',
-              }}
-            >
-              <IconButton sx={{ p: '10px', color: themeContext.theme === 'dark' ? '#FF4B5A' : 'text.secondary' }} aria-label="search">
-                <SearchIcon />
-              </IconButton>
-              <InputBase
-                sx={{ ml: 1, flex: 1, color: themeContext.theme === 'dark' ? '#FFFFFF' : 'text.primary' }}
-                placeholder="Buscar restaurantes ou pratos"
-                inputProps={{ 'aria-label': 'buscar restaurantes ou pratos' }}
-              />
-            </Paper>
-          </Box>
-        </Box>
-
-        {/* Categorias */}
-        <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: themeContext.theme === 'dark' ? '#FFFFFF' : 'text.primary' }}>
-          Categorias
+        <Typography variant="h4" gutterBottom sx={{ mt: 4 }}>
+          Restaurantes
         </Typography>
-        <Grid container spacing={2} sx={{ mb: 6 }}>
-          {categories.map((category, index) => (
-            <Grid item xs={6} sm={3} key={index}>
-              <Card
-                sx={{
-                  height: '100%',
-                  cursor: 'pointer',
-                  backgroundColor: themeContext.theme === 'dark' ? '#2D2D2D' : 'background.paper',
-                  color: themeContext.theme === 'dark' ? '#FFFFFF' : 'text.primary',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: themeContext.theme === 'dark' ? '0 8px 24px rgba(255, 255, 255, 0.1)' : '0 8px 24px rgba(0, 0, 0, 0.15)',
-                    '& .category-icon': {
-                      color: themeContext.theme === 'dark' ? '#FF4B5A' : 'primary.main',
-                      transform: 'scale(1.1)',
-                    }
-                  }
-                }}
-              >
-                <CardContent sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  textAlign: 'center'
-                }}>
-                  <Box
-                    className="category-icon"
-                    sx={{
-                      p: 2,
-                      borderRadius: '50%',
-                      bgcolor: themeContext.theme === 'dark' ? '#3A3A3A' : 'grey.200',
-                      mb: 2,
-                      transition: 'all 0.3s ease',
-                    }}
-                  >
-                    {React.cloneElement(category.icon, { sx: { fontSize: 32, color: themeContext.theme === 'dark' ? '#FF7582' : 'inherit' } })}
-                  </Box>
-                  <Typography variant="subtitle1" fontWeight={500}>
-                    {category.label}
-                  </Typography>
-                </CardContent>
-              </Card>
+
+        {/* Barra de Pesquisa */}
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder="Buscar restaurantes ou produtos..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{ mb: 3 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        {/* Filtros */}
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} sm={3}>
+              <FormControl fullWidth>
+                <InputLabel>Tipo de Cozinha</InputLabel>
+                <Select
+                  value={filters.cuisineType}
+                  onChange={(e) => handleFilterChange('cuisineType', e.target.value)}
+                  label="Tipo de Cozinha"
+                >
+                  <MenuItem value="">Todos</MenuItem>
+                  <MenuItem value="italian">Italiana</MenuItem>
+                  <MenuItem value="japanese">Japonesa</MenuItem>
+                  <MenuItem value="brazilian">Brasileira</MenuItem>
+                  <MenuItem value="fast-food">Fast Food</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
-          ))}
-        </Grid>
-
-        {/* Seções principais */}
-        <Grid container spacing={3}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
-              height: '100%',
-              backgroundColor: themeContext.theme === 'dark' ? '#2D2D2D' : 'background.paper',
-              color: themeContext.theme === 'dark' ? '#FFFFFF' : 'text.primary',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: themeContext.theme === 'dark' ? '0 8px 24px rgba(255, 255, 255, 0.1)' : '0 8px 24px rgba(0, 0, 0, 0.15)',
-                '& .card-icon': {
-                  color: themeContext.theme === 'dark' ? '#FF4B5A' : 'primary.main',
-                  transform: 'scale(1.1) rotate(10deg)',
-                }
-              }
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box className="card-icon" sx={{ transition: 'all 0.3s ease' }}>
-                    <Restaurant sx={{ mr: 1, fontSize: 28 }} />
-                  </Box>
-                  <Typography variant="h6" sx={{ mb: 2, color: themeContext.theme === 'dark' ? '#FF7582' : 'text.primary' }}>
-                    Ofertas Especiais
-                  </Typography>
-                </Box>
-                <Typography variant="body2" sx={{ color: themeContext.theme === 'dark' ? '#CCCCCC' : 'text.secondary' }}>
-                  Explore os melhores restaurantes da região
-                </Typography>
-              </CardContent>
-            </Card>
+            <Grid item xs={12} sm={3}>
+              <FormControl fullWidth>
+                <InputLabel>Ordenar por</InputLabel>
+                <Select
+                  value={filters.sortBy}
+                  onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+                  label="Ordenar por"
+                >
+                  <MenuItem value="rating">Avaliação</MenuItem>
+                  <MenuItem value="distance">Distância</MenuItem>
+                  <MenuItem value="deliveryTime">Tempo de Entrega</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <Chip
+                label="Favoritos"
+                onClick={() => handleFilterChange('favorites', !filters.favorites)}
+                color={filters.favorites ? 'primary' : 'default'}
+                icon={filters.favorites ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+              />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <Chip
+                label="Próximos a mim"
+                onClick={() => handleFilterChange('nearby', !filters.nearby)}
+                color={filters.nearby ? 'primary' : 'default'}
+                icon={<LocationOnIcon />}
+              />
+            </Grid>
           </Grid>
+        </Paper>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
-              height: '100%',
-              backgroundColor: themeContext.theme === 'dark' ? '#2D2D2D' : 'background.paper',
-              color: themeContext.theme === 'dark' ? '#FFFFFF' : 'text.primary',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: themeContext.theme === 'dark' ? '0 8px 24px rgba(255, 255, 255, 0.1)' : '0 8px 24px rgba(0, 0, 0, 0.15)',
-                '& .card-icon': {
-                  color: themeContext.theme === 'dark' ? '#FF4B5A' : 'primary.main',
-                  transform: 'scale(1.1) rotate(-10deg)',
-                }
-              }
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box className="card-icon" sx={{ transition: 'all 0.3s ease' }}>
-                    <LocalOffer sx={{ mr: 1, fontSize: 28 }} />
-                  </Box>
-                  <Typography variant="h6" sx={{ mb: 2, color: themeContext.theme === 'dark' ? '#FF7582' : 'text.primary' }}>
-                    Seus Favoritos
-                  </Typography>
-                </Box>
-                <Typography variant="body2" sx={{ color: themeContext.theme === 'dark' ? '#CCCCCC' : 'text.secondary' }}>
-                  Confira as melhores ofertas do dia
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
+        {/* Tabs para alternar entre Restaurantes e Produtos */}
+        <Tabs value={selectedTab} onChange={handleTabChange} sx={{ mb: 3 }}>
+          <Tab label="Restaurantes" />
+          <Tab label="Produtos" />
+        </Tabs>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
-              height: '100%',
-              backgroundColor: themeContext.theme === 'dark' ? '#2D2D2D' : 'background.paper',
-              color: themeContext.theme === 'dark' ? '#FFFFFF' : 'text.primary',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: themeContext.theme === 'dark' ? '0 8px 24px rgba(255, 255, 255, 0.1)' : '0 8px 24px rgba(0, 0, 0, 0.15)',
-                '& .card-icon': {
-                  color: themeContext.theme === 'dark' ? '#FF4B5A' : 'primary.main',
-                  transform: 'scale(1.1) rotate(15deg)',
-                }
-              }
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box className="card-icon" sx={{ transition: 'all 0.3s ease' }}>
-                    <Favorite sx={{ mr: 1, fontSize: 28 }} />
-                  </Box>
-                  <Typography variant="h6" sx={{ mb: 2, color: themeContext.theme === 'dark' ? '#FF7582' : 'text.primary' }}>
-                    Histórico de Pedidos
-                  </Typography>
-                </Box>
-                <Typography variant="body2" sx={{ color: themeContext.theme === 'dark' ? '#CCCCCC' : 'text.secondary' }}>
-                  Seus últimos pedidos
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
-              height: '100%',
-              backgroundColor: themeContext.theme === 'dark' ? '#2D2D2D' : 'background.paper',
-              color: themeContext.theme === 'dark' ? '#FFFFFF' : 'text.primary',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: themeContext.theme === 'dark' ? '0 8px 24px rgba(255, 255, 255, 0.1)' : '0 8px 24px rgba(0, 0, 0, 0.15)',
-                '& .card-icon': {
-                  color: themeContext.theme === 'dark' ? '#FF4B5A' : 'primary.main',
-                  transform: 'scale(1.1) rotate(-15deg)',
-                }
-              }
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box className="card-icon" sx={{ transition: 'all 0.3s ease' }}>
-                    <History sx={{ mr: 1, fontSize: 28 }} />
-                  </Box>
-                  <Typography variant="h6" sx={{ mb: 2, color: themeContext.theme === 'dark' ? '#FF7582' : 'text.primary' }}>
-                    Restaurante 1
-                  </Typography>
-                </Box>
-                <Typography variant="body2" sx={{ color: themeContext.theme === 'dark' ? '#CCCCCC' : 'text.secondary' }}>
-                  Descrição do restaurante 1
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
-              height: '100%',
-              backgroundColor: themeContext.theme === 'dark' ? '#2D2D2D' : 'background.paper',
-              color: themeContext.theme === 'dark' ? '#FFFFFF' : 'text.primary',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: themeContext.theme === 'dark' ? '0 8px 24px rgba(255, 255, 255, 0.1)' : '0 8px 24px rgba(0, 0, 0, 0.15)',
-                '& .card-icon': {
-                  color: themeContext.theme === 'dark' ? '#FF4B5A' : 'primary.main',
-                  transform: 'scale(1.1) rotate(10deg)',
-                }
-              }
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box className="card-icon" sx={{ transition: 'all 0.3s ease' }}>
-                    <Restaurant sx={{ mr: 1, fontSize: 28 }} />
-                  </Box>
-                  <Typography variant="h6" sx={{ mb: 2, color: themeContext.theme === 'dark' ? '#FF7582' : 'text.primary' }}>
-                    Restaurante 2
-                  </Typography>
-                </Box>
-                <Typography variant="body2" sx={{ color: themeContext.theme === 'dark' ? '#CCCCCC' : 'text.secondary' }}>
-                  Descrição do restaurante 2
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
-              height: '100%',
-              backgroundColor: themeContext.theme === 'dark' ? '#2D2D2D' : 'background.paper',
-              color: themeContext.theme === 'dark' ? '#FFFFFF' : 'text.primary',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: themeContext.theme === 'dark' ? '0 8px 24px rgba(255, 255, 255, 0.1)' : '0 8px 24px rgba(0, 0, 0, 0.15)',
-                '& .card-icon': {
-                  color: themeContext.theme === 'dark' ? '#FF4B5A' : 'primary.main',
-                  transform: 'scale(1.1) rotate(-10deg)',
-                }
-              }
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box className="card-icon" sx={{ transition: 'all 0.3s ease' }}>
-                    <LocalOffer sx={{ mr: 1, fontSize: 28 }} />
-                  </Box>
-                  <Typography variant="h6" sx={{ mb: 2, color: themeContext.theme === 'dark' ? '#FF7582' : 'text.primary' }}>
-                    Restaurante 3
-                  </Typography>
-                </Box>
-                <Typography variant="body2" sx={{ color: themeContext.theme === 'dark' ? '#CCCCCC' : 'text.secondary' }}>
-                  Descrição do restaurante 3
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* Trending */}
-        <Box sx={{ mt: 6, mb: 4 }}>
-          <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, display: 'flex', alignItems: 'center', color: themeContext.theme === 'dark' ? '#FFFFFF' : 'text.primary' }}>
-            <TrendingUp sx={{ mr: 1 }} />
-            Em Alta
-          </Typography>
+        {/* Lista de Restaurantes */}
+        {selectedTab === 0 && (
           <Grid container spacing={3}>
-            {[1, 2, 3].map((item) => (
-              <Grid item xs={12} sm={6} md={4} key={item}>
-                <Card sx={{
-                  position: 'relative',
-                  cursor: 'pointer',
-                  backgroundColor: themeContext.theme === 'dark' ? '#2D2D2D' : 'background.paper',
-                  color: themeContext.theme === 'dark' ? '#FFFFFF' : 'text.primary',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: themeContext.theme === 'dark' ? '0 8px 24px rgba(255, 255, 255, 0.1)' : '0 8px 24px rgba(0, 0, 0, 0.15)',
-                    '& .restaurant-image': {
-                      transform: 'scale(1.05)',
-                    }
-                  }
-                }}>
-                  <Box
-                    className="restaurant-image"
-                    sx={{
-                      height: 200,
-                      bgcolor: themeContext.theme === 'dark' ? '#3A3A3A' : 'grey.300',
-                      transition: 'transform 0.3s ease',
-                    }}
-                  />
+            {filteredRestaurants.map((restaurant) => (
+              <Grid item xs={12} sm={6} md={4} key={restaurant.id}>
+                <Card>
                   <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2, color: themeContext.theme === 'dark' ? '#FF7582' : 'text.primary' }}>
-                      Restaurante {item}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="h6">{restaurant.name}</Typography>
+                      <IconButton onClick={() => toggleFavorite('restaurant', restaurant.id)}>
+                        {restaurant.isFavorite ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
+                      </IconButton>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Rating value={restaurant.rating || 0} readOnly size="small" />
+                      <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                        ({restaurant.rating || 0})
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {restaurant.cuisineType} • {restaurant.deliveryTime} • R$ {(restaurant.deliveryFee || 0).toFixed(2)} de taxa
                     </Typography>
-                    <Typography variant="body2" sx={{ color: themeContext.theme === 'dark' ? '#CCCCCC' : 'text.secondary' }}>
-                      Descrição do restaurante {item}
+                    <Typography variant="body2" color="text.secondary">
+                      {(restaurant.distance || 0).toFixed(1)}km de distância
                     </Typography>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      sx={{ mt: 2 }}
+                      onClick={() => handleViewRestaurantMenu(restaurant.id)}
+                    >
+                      Ver Menu
+                    </Button>
                   </CardContent>
                 </Card>
               </Grid>
             ))}
           </Grid>
-        </Box>
+        )}
+
+        {/* Lista de Produtos */}
+        {selectedTab === 1 && (
+          <Grid container spacing={3}>
+            {filteredProducts.map((product) => (
+              <Grid item xs={12} sm={6} md={4} key={product.id}>
+                <Card>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="h6">{product.name}</Typography>
+                      <IconButton onClick={() => toggleFavorite('product', product.id)}>
+                        {product.isFavorite ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
+                      </IconButton>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {product.description}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {product.cuisineType}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      R$ {(product.price || 0).toFixed(2)}
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      sx={{ mt: 2 }}
+                      onClick={() => navigate(`/products/${product.id}`)}
+                    >
+                      Ver Detalhes
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
       </Container>
     </Box>
   );

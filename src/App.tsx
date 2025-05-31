@@ -7,6 +7,7 @@ import theme from './theme';
 import AppRoutes from './routes';
 import './styles/animations.css';
 import './styles/global.css';
+import RestaurantMenu from './pages/RestaurantMenu';
 
 const App = () => {
   return (

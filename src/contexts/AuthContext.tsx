@@ -1,57 +1,71 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import authService from '../services/authService';
+import { validateToken, getCurrentUser } from '../services/authService';
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface AuthContextType {
-  user: any | null;
+  user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   sendVerificationCode: (email: string) => Promise<string>;
   verifyCode: (email: string, code: string) => Promise<void>;
   loginWithGoogle: () => void;
-  login: (userData: any, token: string) => void;
+  login: (userData: any) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<any | null>(JSON.parse(localStorage.getItem('user') || 'null'));
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
-  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('token');
-        console.log('Checking auth token in localStorage:', token ? 'Token exists' : 'No token found');
+        console.log('Checking auth token in localStorage:', token ? 'Token found' : 'No token found');
+
         if (token) {
-          const isValid = await authService.validateToken();
+          const isValid = await validateToken(token);
           console.log('Token validation result:', isValid);
+
           if (isValid) {
-            const userData = JSON.parse(localStorage.getItem('user') || 'null');
-            console.log('User data from localStorage:', userData);
-            setUser(userData);
-            setIsAuthenticated(true);
+            const userData = await getCurrentUser();
+            if (userData) {
+              setUser(userData);
+              setIsAuthenticated(true);
+            } else {
+              console.log('No user data found, clearing auth state');
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              setIsAuthenticated(false);
+              setUser(null);
+            }
           } else {
             console.log('Token invalid, clearing localStorage');
-            setUser(null);
-            setIsAuthenticated(false);
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            setIsAuthenticated(false);
+            setUser(null);
           }
         } else {
           console.log('No token, setting user as unauthenticated');
-          setUser(null);
           setIsAuthenticated(false);
+          setUser(null);
         }
       } catch (error) {
-        console.error('Auth check failed:', error);
-        setUser(null);
+        console.error('Error checking authentication:', error);
         setIsAuthenticated(false);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -92,22 +106,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const login = (userData: any, token: string) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-    setIsAuthenticated(true);
-    navigate('/menu');
+  const login = async (userData: any) => {
+    try {
+      setUser(userData);
+      setIsAuthenticated(true);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   };
 
   const logout = () => {
-    authService.handleLogout();
-    setUser(null);
-    setIsAuthenticated(false);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    navigate('/login');
+    setUser(null);
+    setIsAuthenticated(false);
   };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <AuthContext.Provider

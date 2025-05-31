@@ -12,6 +12,9 @@ import MenuItemCreate from '../pages/MenuItemCreate';
 import MenuItemList from '../pages/MenuItemList';
 import RestaurantEdit from '../pages/RestaurantEdit';
 import MenuItemEdit from '../pages/MenuItemEdit';
+import ShoppingCart from '../pages/ShoppingCart';
+import Order from '../pages/Order';
+import Invoice from '../pages/Invoice';
 
 const AppRoutes: React.FC = () => {
   return (
@@ -61,6 +64,21 @@ const AppRoutes: React.FC = () => {
       <Route path="/restaurants/:restaurantId/menu-items/edit/:id" element={
         <PrivateRoute>
           <MenuItemEdit />
+        </PrivateRoute>
+      } />
+      <Route path="/shopping-cart" element={
+        <PrivateRoute>
+          <ShoppingCart />
+        </PrivateRoute>
+      } />
+      <Route path="/order" element={
+        <PrivateRoute>
+          <Order />
+        </PrivateRoute>
+      } />
+      <Route path="/invoice" element={
+        <PrivateRoute>
+          <Invoice />
         </PrivateRoute>
       } />
       <Route path="*" element={<Login />} />
